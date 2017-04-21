@@ -15,24 +15,15 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 
 	"github.com/dcos/dcos-go/dcos"
 	"github.com/dcos/dcos/packages/dcos-checks/extra/dcos-checks/client"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-)
-
-const (
-	statusOK      = 0
-	statusWarning = 1
-	statusFailure = 2
-	statusUnknown = 3
 )
 
 var (
@@ -184,31 +175,4 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Println("Using config file:", viper.ConfigFileUsed())
 	}
-}
-
-// DCOSChecker defines an interface for a generic DC/OS check.
-// ID() returns a check unique ID and RunCheck(...) returns a combined stdout/stderr, exit code and error.
-type DCOSChecker interface {
-	ID() string
-	Run(context.Context, *CLIConfigFlags) (string, int, error)
-}
-
-// RunCheck is a helper function that takes a list of DC/OS checks and runs checks one by one.
-func RunCheck(checks []DCOSChecker) {
-
-	exitCode := statusOK
-
-	for _, check := range checks {
-		output, retCode, err := check.Run(nil, DCOSConfig)
-		if err != nil {
-			logrus.Fatalf("Error executing %s: %s", check.ID(), err)
-		}
-		if retCode != statusOK {
-			exitCode = statusFailure
-		}
-		if output != "" {
-			fmt.Printf("[%s]: %s\n", check.ID(), output)
-		}
-	}
-	os.Exit(exitCode)
 }

@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -60,14 +59,7 @@ and validating the health field:
 }
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		// it is possible to implement a number of other checks under the same subcommand namespace.
-		// this function can be used as a dispatcher.
-		if len(args) == 0 {
-			RunCheck([]DCOSChecker{&ComponentCheck{
-				Name: "DC/OS components health check",
-			}})
-			return
-		}
+		RunCheck(NewComponentCheck("DC/OS components health check"))
 	},
 }
 
@@ -115,7 +107,7 @@ func (c *ComponentCheck) Run(ctx context.Context, cfg *CLIConfigFlags) (string, 
 	if err != nil {
 		return "", 0, err
 	}
-	logrus.Infof("GET %s", url)
+	logrus.Debugf("GET %s", url)
 	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return "", statusUnknown, fmt.Errorf("unable to create a new HTTP request: %s", err)
@@ -127,13 +119,8 @@ func (c *ComponentCheck) Run(ctx context.Context, cfg *CLIConfigFlags) (string, 
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", statusUnknown, fmt.Errorf("unable to read response body: %s", err)
-	}
-
-	dr := &diagnosticsResponse{}
-	if err := json.Unmarshal(body, dr); err != nil {
+	var dr diagnosticsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&dr); err != nil {
 		return "", statusUnknown, fmt.Errorf("unable to unmarshal diagnostics response: %s", err)
 	}
 
